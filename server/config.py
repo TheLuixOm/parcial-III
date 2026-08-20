@@ -4,6 +4,7 @@ BUFFER_SIZE = 4096
 
 DELIMITER = b"\xAA\x55"
 HEADER_SIZE = 7  # 2(delimiter) + 1(type) + 2(seq) + 2(length)
+CRC_SIZE = 4
 
 MSG_DATA = 0x01
 MSG_ACK = 0x02

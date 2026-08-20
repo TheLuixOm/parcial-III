@@ -1,6 +1,6 @@
 const net = require("net");
 const readline = require("readline");
-const { HOST, PORT, MSG_DATA, MSG_ACK, MSG_PING, MSG_CLOSE } = require("./config");
+const { HOST, PORT, HEADER_SIZE, CRC_SIZE, MSG_DATA, MSG_ACK, MSG_NACK, MSG_PING, MSG_CLOSE } = require("./config");
 const { packFrame, unpackFrame, typeName } = require("./protocol");
 
 let seq = 0;
@@ -19,15 +19,22 @@ function log(msg) {
 }
 
 function processDataBuffer() {
-  while (responseBuffer.length >= 7) {
+  while (responseBuffer.length >= HEADER_SIZE + CRC_SIZE) {
     const result = unpackFrame(responseBuffer);
     if (!result) break;
 
-    const { msgType, seq: rSeq, payload, remaining } = result;
+    const { msgType, seq: rSeq, payload, valid, remaining } = result;
     responseBuffer = remaining;
+
+    if (!valid) {
+      log(`CRC INVALIDO en ${typeName(msgType)} seq=${rSeq} - trama descartada`);
+      continue;
+    }
 
     if (msgType === MSG_ACK) {
       log(`ACK recibido seq=${rSeq}`);
+    } else if (msgType === MSG_NACK) {
+      log(`NACK recibido seq=${rSeq} - servidor rechazo la trama (CRC invalido)`);
     } else if (msgType === MSG_CLOSE) {
       log(`CLOSE recibido seq=${rSeq} - conexion cerrada por servidor`);
       cleanup();

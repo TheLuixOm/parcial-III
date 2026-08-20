@@ -1,7 +1,7 @@
 import socket
 import struct
 import threading
-from config import HOST, PORT, BUFFER_SIZE, MSG_DATA, MSG_ACK, MSG_PING, MSG_CLOSE
+from config import HOST, PORT, BUFFER_SIZE, MSG_DATA, MSG_ACK, MSG_NACK, MSG_PING, MSG_CLOSE
 from protocol import pack_frame, type_name, recv_exact
 
 
@@ -29,7 +29,22 @@ def handle_client(conn, addr):
             else:
                 payload = b""
 
-            log(addr, f"Recibido {type_name(msg_type)} seq={seq} len={length}")
+            crc_data = recv_exact(conn, 4)
+            if not crc_data:
+                log(addr, "Conexion cerrada durante CRC")
+                break
+            crc_received = struct.unpack(">I", crc_data)[0]
+
+            from protocol import calc_crc32
+            crc_computed = calc_crc32(msg_type.to_bytes(1, "big") + struct.pack(">HH", seq, length) + payload)
+
+            if crc_received != crc_computed:
+                log(addr, f"CRC INVALIDO en {type_name(msg_type)} seq={seq} (recibido=0x{crc_received:08X}, esperado=0x{crc_computed:08X})")
+                conn.sendall(pack_frame(MSG_NACK, seq))
+                log(addr, f"Enviado NACK seq={seq}")
+                continue
+
+            log(addr, f"Recibido {type_name(msg_type)} seq={seq} len={length} CRC=OK")
 
             if msg_type == MSG_DATA:
                 mensaje = payload.decode("utf-8", errors="replace")

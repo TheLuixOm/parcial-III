@@ -1,7 +1,8 @@
 module.exports = {
   HOST: "127.0.0.1",
-  PORT: 5000,
+  PORT: 9002,
   HEADER_SIZE: 7,
+  CRC_SIZE: 4,
 
   MSG_DATA: 0x01,
   MSG_ACK: 0x02,
