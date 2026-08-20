@@ -1,0 +1,9 @@
+requerimientos.md
+
+
+adversary
+
+test_integration.py
+
+__pycache__/
+*.pyc

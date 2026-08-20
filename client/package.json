@@ -1,0 +1,9 @@
+{
+  "name": "protocol-client",
+  "version": "1.0.0",
+  "description": "Cliente CLI para el protocolo de comunicacion Fase 1",
+  "main": "client.js",
+  "scripts": {
+    "start": "node client.js"
+  }
+}
