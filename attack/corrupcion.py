@@ -1,8 +1,7 @@
-"""
-Proxy de Corrupcion de Datos
-Altera bits aleatorios en el payload de las tramas antes de reenviarlas.
-Uso: python corruption_proxy.py [--corrupt 30] [--port 9002]
-"""
+
+## Proxy de Corrupcion de Datos
+## Altera bits aleatorios en el payload 
+
 import socket
 import threading
 import random

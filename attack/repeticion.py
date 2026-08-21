@@ -1,8 +1,8 @@
-"""
-Proxy de Replay / Inyeccion de Tramas
-Duplica tramas DATA aleatoriamente (ataque de replay) o inyecta tramas basura.
-Uso: python replay_proxy.py [--replay 30] [--inject 10] [--port 9002]
-"""
+
+## Proxy de Replay / Inyeccion de Tramas
+## Duplica tramas DATA aleatoriamente (ataque de replay) o inyecta tramas basura.
+## para usar: python replay_proxy.py [--replay 30] [--inject 10] [--port 9002]
+
 import socket
 import threading
 import random

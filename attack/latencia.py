@@ -1,8 +1,8 @@
-"""
-Proxy de Latencia y Reordenamiento
-de delay artificial y reordena tramas aleatoriamente.
-Uso: python latency_proxy.py [--delay 200] [--reorder 30] [--port 9002]
-"""
+
+## Proxy de Latencia y Reordenamiento
+## de delay artificial y reordena tramas aleatoriamente.
+## para usar: python latency_proxy.py [--delay 200] [--reorder 30] [--port 9002]
+
 import socket
 import threading
 import random
