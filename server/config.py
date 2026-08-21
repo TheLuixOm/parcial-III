@@ -19,3 +19,6 @@ MSG_NAMES = {
     MSG_PING: "PING",
     MSG_CLOSE: "CLOSE",
 }
+
+TIMEOUT_S = 3  # timeout Stop-and-Wait en segundos
+MAX_RETRIES = 3  # maximo reintentos ante timeout/NACK

@@ -1,8 +1,8 @@
 import socket
 import struct
 import threading
-from config import HOST, PORT, BUFFER_SIZE, MSG_DATA, MSG_ACK, MSG_NACK, MSG_PING, MSG_CLOSE
-from protocol import pack_frame, type_name, recv_exact
+from config import HOST, PORT, BUFFER_SIZE, MSG_DATA, MSG_ACK, MSG_NACK, MSG_PING, MSG_CLOSE, TIMEOUT_S
+from protocol import pack_frame, type_name, recv_exact, calc_crc32
 
 
 def log(addr, msg):
@@ -11,10 +11,20 @@ def log(addr, msg):
 
 def handle_client(conn, addr):
     log(addr, "Conexion establecida")
+    expected_seq = 1
 
     try:
         while True:
-            header = recv_exact(conn, 7)
+            conn.settimeout(TIMEOUT_S)
+            try:
+                header = recv_exact(conn, 7)
+            except socket.timeout:
+                log(addr, "Timeout esperando datos del cliente")
+                continue
+            except OSError:
+                log(addr, "Conexion cerrada por el cliente")
+                break
+
             if not header:
                 log(addr, "Conexion cerrada por el cliente")
                 break
@@ -35,7 +45,6 @@ def handle_client(conn, addr):
                 break
             crc_received = struct.unpack(">I", crc_data)[0]
 
-            from protocol import calc_crc32
             crc_computed = calc_crc32(msg_type.to_bytes(1, "big") + struct.pack(">HH", seq, length) + payload)
 
             if crc_received != crc_computed:
@@ -44,20 +53,29 @@ def handle_client(conn, addr):
                 log(addr, f"Enviado NACK seq={seq}")
                 continue
 
-            log(addr, f"Recibido {type_name(msg_type)} seq={seq} len={length} CRC=OK")
-
             if msg_type == MSG_DATA:
-                mensaje = payload.decode("utf-8", errors="replace")
-                log(addr, f"Mensaje: {mensaje}")
-                conn.sendall(pack_frame(MSG_ACK, seq))
-                log(addr, f"Enviado ACK seq={seq}")
+                if seq == expected_seq:
+                    log(addr, f"Recibido DATA seq={seq} len={length} CRC=OK [expected={expected_seq}]")
+                    mensaje = payload.decode("utf-8", errors="replace")
+                    log(addr, f"Mensaje: {mensaje}")
+                    conn.sendall(pack_frame(MSG_ACK, seq))
+                    log(addr, f"Enviado ACK seq={seq}")
+                    expected_seq = (expected_seq + 1) & 0xffff
+                elif seq < expected_seq:
+                    log(addr, f"DUPLICADO DATA seq={seq} (expected={expected_seq}) - reenviando ACK")
+                    conn.sendall(pack_frame(MSG_ACK, seq))
+                else:
+                    log(addr, f"FUERA DE ORDEN DATA seq={seq} (expected={expected_seq})")
+                    conn.sendall(pack_frame(MSG_NACK, seq))
+                    log(addr, f"Enviado NACK seq={seq}")
 
             elif msg_type == MSG_PING:
+                log(addr, f"Recibido PING seq={seq} CRC=OK")
                 conn.sendall(pack_frame(MSG_ACK, seq))
                 log(addr, f"Enviado ACK (respuesta a PING)")
 
             elif msg_type == MSG_CLOSE:
-                log(addr, "Solicitud de cierre recibida")
+                log(addr, f"Solicitud de cierre recibida seq={seq}")
                 conn.sendall(pack_frame(MSG_CLOSE, seq))
                 log(addr, "Enviado CLOSE de respuesta")
                 break
@@ -81,6 +99,7 @@ def main():
     server.listen(5)
 
     print(f"Servidor escuchando en {HOST}:{PORT}")
+    print(f"Stop-and-Wait activo (timeout={TIMEOUT_S}s)")
     print("Esperando conexiones...\n")
 
     try:

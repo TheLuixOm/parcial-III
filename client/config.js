@@ -4,6 +4,9 @@ module.exports = {
   HEADER_SIZE: 7,
   CRC_SIZE: 4,
 
+  TIMEOUT_MS: 3000,  // timeout Stop-and-Wait en ms
+  MAX_RETRIES: 3,    // maximo reintentos ante timeout/NACK
+
   MSG_DATA: 0x01,
   MSG_ACK: 0x02,
   MSG_NACK: 0x03,
