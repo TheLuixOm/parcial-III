@@ -1,7 +1,7 @@
 const net = require("net");
 const readline = require("readline");
-const { HOST, PORT, HEADER_SIZE, CRC_SIZE, TIMEOUT_MS, MAX_RETRIES, MSG_DATA, MSG_ACK, MSG_NACK, MSG_PING, MSG_CLOSE } = require("./config");
-const { packFrame, unpackFrame, typeName } = require("./protocol");
+const { HOST, PORT, HEADER_SIZE, CRC_SIZE, TIMEOUT_MS, MAX_RETRIES, MSG_DATA, MSG_ACK, MSG_NACK, MSG_PING, MSG_CLOSE, MSG_ERROR } = require("./config");
+const { packFrame, unpackFrame, typeName, errorName, findDelimiter } = require("./protocol");
 
 const STATE_IDLE = 0;
 const STATE_WAITING = 1;
@@ -58,9 +58,26 @@ function sendDataFrame(text) {
 }
 
 function processDataBuffer() {
-  while (responseBuffer.length >= HEADER_SIZE + CRC_SIZE) {
+  while (true) {
+    if (responseBuffer.length >= 2 && (responseBuffer[0] !== 0xaa || responseBuffer[1] !== 0x55)) {
+      const idx = findDelimiter(responseBuffer, 1);
+      if (idx === -1) {
+        const dropped = responseBuffer.length - 1;
+        if (dropped > 0) {
+          log(`RESYNC: ${dropped} bytes fuera de trama descartados`);
+        }
+        responseBuffer = responseBuffer.subarray(dropped);
+      } else {
+        log(`RESYNC: ${idx} bytes fuera de trama descartados`);
+        responseBuffer = responseBuffer.subarray(idx);
+      }
+      continue;
+    }
+
+    if (responseBuffer.length < HEADER_SIZE + CRC_SIZE) return;
+
     const result = unpackFrame(responseBuffer);
-    if (!result) break;
+    if (!result) return;
 
     const { msgType, seq: rSeq, payload, valid, remaining } = result;
     responseBuffer = remaining;
@@ -80,20 +97,12 @@ function processDataBuffer() {
       }
     } else if (msgType === MSG_NACK) {
       log(`NACK recibido seq=${rSeq}`);
-      if (state === STATE_WAITING) {
-        retries++;
-        if (retries > MAX_RETRIES) {
-          log(`AGOTADO: ${MAX_RETRIES} reintentos sin ACK para seq=${seq}`);
-          state = STATE_IDLE;
-          pendingFrame = null;
-          retries = 0;
-        } else {
-          log(`Retransmitiendo ${retries}/${MAX_RETRIES} seq=${seq}`);
-          clearTimeoutTimer();
-          socket.write(pendingFrame);
-          startTimeout();
-        }
-      }
+      retransmit();
+    } else if (msgType === MSG_ERROR) {
+      const code = payload.length > 0 ? payload[0] : 0;
+      const detail = payload.length > 1 ? payload.toString("utf-8", 1) : "";
+      log(`ERROR(${errorName(code)}) seq=${rSeq}${detail ? ` [${detail}]` : ""}`);
+      retransmit();
     } else if (msgType === MSG_CLOSE) {
       log(`CLOSE recibido seq=${rSeq} - conexion cerrada por servidor`);
       clearTimeoutTimer();
@@ -103,6 +112,22 @@ function processDataBuffer() {
       const text = payload.toString("utf-8");
       log(`${typeName(msgType)} seq=${rSeq}: ${text}`);
     }
+  }
+}
+
+function retransmit() {
+  if (state !== STATE_WAITING) return;
+  retries++;
+  if (retries > MAX_RETRIES) {
+    log(`AGOTADO: ${MAX_RETRIES} reintentos sin ACK para seq=${seq}`);
+    state = STATE_IDLE;
+    pendingFrame = null;
+    retries = 0;
+  } else {
+    log(`Retransmitiendo ${retries}/${MAX_RETRIES} seq=${seq}`);
+    clearTimeoutTimer();
+    socket.write(pendingFrame);
+    startTimeout();
   }
 }
 

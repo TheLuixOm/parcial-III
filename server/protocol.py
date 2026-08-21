@@ -1,10 +1,14 @@
 import struct
 import binascii
-from config import DELIMITER, HEADER_SIZE, CRC_SIZE, MSG_NAMES
+from config import DELIMITER, HEADER_SIZE, CRC_SIZE, MSG_NAMES, ERROR_NAMES
 
 
 def calc_crc32(data):
     return binascii.crc32(data) & 0xFFFFFFFF
+
+
+def find_delimiter(data, start=1):
+    return data.find(DELIMITER, start)
 
 
 def pack_frame(msg_type, seq, payload=b""):
@@ -42,6 +46,10 @@ def unpack_frame(data):
 
 def type_name(msg_type):
     return MSG_NAMES.get(msg_type, f"UNKNOWN(0x{msg_type:02X})")
+
+
+def error_name(code):
+    return ERROR_NAMES.get(code, f"ERR_UNKNOWN(0x{code:02X})")
 
 
 def recv_exact(sock, n):

@@ -1,4 +1,4 @@
-const { HEADER_SIZE, CRC_SIZE, MSG_NAMES } = require("./config");
+const { HEADER_SIZE, CRC_SIZE, MSG_NAMES, ERROR_NAMES } = require("./config");
 
 const DELIMITER = Buffer.from([0xaa, 0x55]);
 
@@ -85,4 +85,17 @@ function typeName(msgType) {
   return MSG_NAMES[msgType] || `UNKNOWN(0x${msgType.toString(16).padStart(2, "0")})`;
 }
 
-module.exports = { packFrame, unpackFrame, typeName };
+function errorName(code) {
+  return ERROR_NAMES[code] || `ERR_UNKNOWN(0x${code.toString(16).padStart(2, "0")})`;
+}
+
+function findDelimiter(buf, start = 1) {
+  let i = buf.indexOf(0xaa, start);
+  while (i !== -1) {
+    if (buf[i + 1] === 0x55) return i;
+    i = buf.indexOf(0xaa, i + 1);
+  }
+  return -1;
+}
+
+module.exports = { packFrame, unpackFrame, typeName, errorName, findDelimiter };
