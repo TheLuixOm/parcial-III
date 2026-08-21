@@ -38,5 +38,5 @@ ERROR_NAMES = {
     ERR_UNKNOWN_TYPE: "UNKNOWN_TYPE",
 }
 
-TIMEOUT_S = 3  # timeout en segundos
+TIMEOUT_S = 4  # timeout en segundos
 MAX_RETRIES = 3  # maximo reintentos ante timeout/NACK
